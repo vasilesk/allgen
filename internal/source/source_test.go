@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,7 @@ func TestFileBlock(t *testing.T) {
 		{
 			name: "iota block with implicit types",
 			src: `package p
-//go:generate allgen
+@generate allgen
 const (
 	A T = iota
 	B
@@ -36,7 +37,7 @@ const (
 		{
 			name: "var block with several names per spec",
 			src: `package p
-//go:generate allgen
+@generate allgen
 var (
 	a, b = 1, 2
 	c    = 3
@@ -46,14 +47,14 @@ var (
 		{
 			name: "single declaration without parentheses",
 			src: `package p
-//go:generate allgen
+@generate allgen
 var A = 1`,
 			want: source.Block{Kind: token.VAR, Names: []string{"A"}},
 		},
 		{
 			name: "blank identifiers and skip markers",
 			src: `package p
-//go:generate allgen
+@generate allgen
 const (
 	_ T = iota
 	A
@@ -67,7 +68,7 @@ const (
 		{
 			name: "comments between directive and block",
 			src: `package p
-//go:generate allgen
+@generate allgen
 
 // Colors.
 const (
@@ -78,7 +79,7 @@ const (
 		{
 			name: "type declaration below directive",
 			src: `package p
-//go:generate allgen
+@generate allgen
 type T int`,
 			wantErr: source.ErrNoBlock,
 		},
@@ -86,7 +87,7 @@ type T int`,
 			name: "directive inside a function",
 			src: `package p
 func f() {
-//go:generate allgen
+@generate allgen
 }
 const A = 1`,
 			wantErr: source.ErrNoBlock,
@@ -94,13 +95,13 @@ const A = 1`,
 		{
 			name: "nothing below directive",
 			src: `package p
-//go:generate allgen`,
+@generate allgen`,
 			wantErr: source.ErrNoBlock,
 		},
 		{
 			name: "every member skipped",
 			src: `package p
-//go:generate allgen
+@generate allgen
 const (
 	_ = iota
 	A //allgen:skip
@@ -132,7 +133,7 @@ func TestFileDirectiveAt(t *testing.T) {
 	t.Parallel()
 
 	file := parse(t, `package p
-//go:generate  allgen -name X  
+@generate  allgen -name X  
 // go:generate not a directive
 //go:generated not a directive either
 const A = 1`)
@@ -151,11 +152,11 @@ func TestFileDirectiveLine(t *testing.T) {
 	t.Parallel()
 
 	file := parse(t, `package p
-//go:generate allgen -name X
+@generate allgen -name X
 const A = 1
-//go:generate allgen
+@generate allgen
 const B = 1
-//go:generate allgen
+@generate allgen
 const C = 1`)
 
 	line, err := file.DirectiveLine("  //go:generate allgen -name X ")
@@ -207,7 +208,14 @@ func writeFile(t *testing.T, src string) string {
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "file.go")
-	require.NoError(t, os.WriteFile(path, []byte(src), 0o600))
+	require.NoError(t, os.WriteFile(path, []byte(withDirectives(src)), 0o600))
 
 	return path
+}
+
+// withDirectives turns lines starting with @generate into go:generate directives. Test
+// sources spell directives this way because go generate scans test files too and would
+// run a directive found at the start of a line of a raw string literal.
+func withDirectives(src string) string {
+	return strings.ReplaceAll(src, "\n@generate", "\n//go:generate")
 }

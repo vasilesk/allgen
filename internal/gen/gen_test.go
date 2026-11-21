@@ -15,7 +15,7 @@ import (
 
 const colorSource = `package colors
 
-//go:generate allgen
+@generate allgen
 const (
 	Red Color = iota
 	Green
@@ -83,7 +83,7 @@ package timeouts
 
 import "time"
 
-//go:generate allgen -name timeouts
+@generate allgen -name timeouts
 var (
 	Short = time.Second
 	Long  = time.Minute
@@ -126,7 +126,7 @@ func TestGenerateUnexportedType(t *testing.T) {
 
 	dir := writeModule(t, map[string]string{"status.go": `package p
 
-//go:generate allgen
+@generate allgen
 const (
 	active status = "active"
 )
@@ -181,7 +181,7 @@ func TestGenerateErrors(t *testing.T) {
 
 import "errors"
 
-//go:generate allgen
+@generate allgen
 var ErrA = errors.New("a")
 `},
 			file:    "errs.go",
@@ -194,7 +194,7 @@ var ErrA = errors.New("a")
 
 import "time"
 
-//go:generate allgen
+@generate allgen
 const A time.Duration = 1
 `},
 			file:    "t.go",
@@ -212,7 +212,7 @@ const A time.Duration = 1
 			name: "mixed types",
 			files: map[string]string{"t.go": `package p
 
-//go:generate allgen
+@generate allgen
 const (
 	A T = 1
 	B U = 2
@@ -323,8 +323,15 @@ func writeFiles(t *testing.T, dir string, files map[string]string) {
 	t.Helper()
 
 	for name, content := range files {
-		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(withDirectives(content)), 0o600))
 	}
+}
+
+// withDirectives turns lines starting with @generate into go:generate directives. Test
+// sources spell directives this way because go generate scans test files too and would
+// run a directive found at the start of a line of a raw string literal.
+func withDirectives(src string) string {
+	return strings.ReplaceAll(src, "\n@generate", "\n//go:generate")
 }
 
 func readFile(t *testing.T, dir, name string) string {
