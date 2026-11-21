@@ -1,0 +1,64 @@
+version: "2"
+run:
+  go: "1.26"
+linters:
+  default: all
+  disable:
+    - depguard
+    - err113
+    - exhaustruct # deprecated, replaced by exhaustruct_v5
+    - godot
+    - gomodguard # deprecated, replaced by gomodguard_v2
+    - ireturn
+    - mnd
+    - testpackage
+    - varnamelen
+    - wsl # deprecated, replaced by wsl_v5
+  settings:
+    cyclop:
+      max-complexity: 15
+    errorlint:
+      asserts: false
+    funlen:
+      lines: 60
+      statements: 40
+    gocyclo:
+      min-complexity: 15
+    gosec:
+      excludes:
+        - G304 # reading files of the package being generated is the purpose of the tool
+    godox:
+      keywords:
+        - BUG
+        - FIXME
+    nestif:
+      min-complexity: 10
+  exclusions:
+    generated: lax
+    rules:
+      - path: _test\.go
+        linters:
+          - dupl
+          - exhaustruct_v5
+          - funlen
+          - goconst
+          - maintidx
+          - paralleltest
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/vasilesk/allgen)
+      custom-order: false
+  exclusions:
+    generated: lax
